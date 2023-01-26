@@ -47,5 +47,5 @@ Con toda esta información, para simplificar el dataset, lo primero que se hizo 
 Luego de haber analizado el dataset, los objetivos y las herramientas disponibles se ha decantado por la idea de basar el modelo en el metodo Random Forest Classifier. El mismo no solamente que es uno de los más reconocidos por su eficiencia y eficacia a la hora de predicciones en datasets similares con el que se cuenta en esta situación
 Como se puede ver en el Notebook, la métricas de este modelo son las siguientes:
 - Accuracy en entrenamiento: 99%
-' Accuracy en test: 88.5%
+- Accuracy en test: 88.5%
 
