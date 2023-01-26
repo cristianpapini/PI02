@@ -44,10 +44,8 @@ Con toda esta información, para simplificar el dataset, lo primero que se hizo 
 
 
 ## Modelo de Machine Learning
-Dado que el objetivo es predecir el precio de un inmueble, y sabiendo que este, en la mayoría de los casos, varía de acuerdo al valor de sus vecinos, se consideró conveniente basar el modelo en el método de Kvecinos(KNeighbors).
-Se ha corrido el modelo variando el parámetro k y se ha llegado a la conclusión que el valor de (3) es el más conveniente para este caso.
-Valores menores (1,2) el modelo caería en sobreajuste y con valores mayores su eficiencia disminuye considerablemente.
-Como se puede ver en el Notebook, las métricas de este modelo son las siguientes:
-- Precisión (Accuracy): 89.24%
-- Exactitud (Precision): [89.92%  88.48%]
-- Sensibilidad (Recall): [89.7%  88.72%]
+Luego de haber analizado el dataset, los objetivos y las herramientas disponibles se ha decantado por la idea de basar el modelo en el metodo Random Forest Classifier. El mismo no solamente que es uno de los más reconocidos por su eficiencia y eficacia a la hora de predicciones en datasets similares con el que se cuenta en esta situación
+Como se puede ver en el Notebook, la métricas de este modelo son las siguientes:
+- Accuracy en entrenamiento: 99%
+' Accuracy en test: 88.5%
+
