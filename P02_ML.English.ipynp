@@ -1,1 +1,857 @@
-
+{
+ "cells": [
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se importan las librerias necesarias"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 293,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import missingno as msno\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.ensemble import RandomForestClassifier\n",
+    "import sklearn.metrics as metrics\n",
+    "from sklearn.metrics import confusion_matrix\n",
+    "from sklearn.metrics import ConfusionMatrixDisplay"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se lee el dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 294,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train = pd.read_parquet('train.parquet')\n",
+    "df_test = pd.read_parquet('test.parquet')"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Teniendo en cuenta que las siguientes columnas no aportan nada al modelo, se las va a eliminar del dataset como primer filtro \n",
+    "- 'id'\n",
+    "- 'url'\n",
+    "- 'region_url'\n",
+    "- 'image_url'\n",
+    "- 'description'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 295,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train.drop(['id', 'url', 'region_url', 'image_url', 'description'], axis=1, inplace=True)\n",
+    "df_test.drop(['id', 'url', 'region_url', 'image_url', 'description'], axis=1, inplace=True)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Por otro lado, considerando que las variables 'region', 'state', 'lat', 'long' estan íntimamente relacionadas y, considerando que las dos primeras tienen en sus valores una cantidad de categorías muy elevada, se eliminarán las mismas quedando solamente Latitud y Longitud como referentes de la localización de las casas"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 296,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train.drop(['state', 'region'], axis=1, inplace=True)\n",
+    "df_test.drop(['state', 'region'], axis=1, inplace=True)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se puede observar tambien que hay 196 filas del dataset de test que no tienen información de latitud y longitud. Dado a que este número es insignificante ante la cantidad total de registros, se rellenarán las mismas con el promedio de cada una."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 297,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_test['lat'].fillna(df_test['lat'].mean(), inplace=True)\n",
+    "df_test['long'].fillna(df_test['long'].mean(), inplace=True)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se puede ver a continuación que hay una cantidad de 169701 duplicados, los cuales se tendrán que eliminar"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 298,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>price</th>\n",
+       "      <th>type</th>\n",
+       "      <th>sqfeet</th>\n",
+       "      <th>beds</th>\n",
+       "      <th>baths</th>\n",
+       "      <th>cats_allowed</th>\n",
+       "      <th>dogs_allowed</th>\n",
+       "      <th>smoking_allowed</th>\n",
+       "      <th>wheelchair_access</th>\n",
+       "      <th>electric_vehicle_charge</th>\n",
+       "      <th>comes_furnished</th>\n",
+       "      <th>laundry_options</th>\n",
+       "      <th>parking_options</th>\n",
+       "      <th>lat</th>\n",
+       "      <th>long</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>280</th>\n",
+       "      <td>899</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>1021</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1.5</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>37.2867</td>\n",
+       "      <td>-79.9957</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>315</th>\n",
+       "      <td>1259</td>\n",
+       "      <td>townhouse</td>\n",
+       "      <td>1353</td>\n",
+       "      <td>3</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>w/d hookups</td>\n",
+       "      <td>street parking</td>\n",
+       "      <td>38.4586</td>\n",
+       "      <td>-77.4306</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>408</th>\n",
+       "      <td>705</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>800</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>w/d hookups</td>\n",
+       "      <td>carport</td>\n",
+       "      <td>42.3113</td>\n",
+       "      <td>-85.1874</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>458</th>\n",
+       "      <td>589</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>480</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>None</td>\n",
+       "      <td>None</td>\n",
+       "      <td>30.6190</td>\n",
+       "      <td>-96.3185</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>600</th>\n",
+       "      <td>795</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>830</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>laundry on site</td>\n",
+       "      <td>street parking</td>\n",
+       "      <td>39.9230</td>\n",
+       "      <td>-82.8664</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>...</th>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "      <td>...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>346473</th>\n",
+       "      <td>0</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>1100</td>\n",
+       "      <td>2</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>w/d in unit</td>\n",
+       "      <td>off-street parking</td>\n",
+       "      <td>40.0091</td>\n",
+       "      <td>-76.3671</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>346474</th>\n",
+       "      <td>672</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>660</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>laundry on site</td>\n",
+       "      <td>None</td>\n",
+       "      <td>37.9591</td>\n",
+       "      <td>-87.5293</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>346475</th>\n",
+       "      <td>2122</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>1099</td>\n",
+       "      <td>2</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>w/d in unit</td>\n",
+       "      <td>off-street parking</td>\n",
+       "      <td>32.6279</td>\n",
+       "      <td>-117.0370</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>346476</th>\n",
+       "      <td>1014</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>1104</td>\n",
+       "      <td>2</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>w/d hookups</td>\n",
+       "      <td>off-street parking</td>\n",
+       "      <td>33.9659</td>\n",
+       "      <td>-80.9355</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>346477</th>\n",
+       "      <td>935</td>\n",
+       "      <td>apartment</td>\n",
+       "      <td>1050</td>\n",
+       "      <td>2</td>\n",
+       "      <td>2.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>w/d in unit</td>\n",
+       "      <td>detached garage</td>\n",
+       "      <td>48.1995</td>\n",
+       "      <td>-101.2800</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>169701 rows × 15 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "        price       type  sqfeet  beds  baths  cats_allowed  dogs_allowed  \\\n",
+       "280       899  apartment    1021     2    1.5             0             0   \n",
+       "315      1259  townhouse    1353     3    2.0             1             1   \n",
+       "408       705  apartment     800     2    1.0             1             1   \n",
+       "458       589  apartment     480     0    1.0             1             1   \n",
+       "600       795  apartment     830     2    1.0             1             1   \n",
+       "...       ...        ...     ...   ...    ...           ...           ...   \n",
+       "346473      0  apartment    1100     2    1.0             0             0   \n",
+       "346474    672  apartment     660     1    1.0             1             1   \n",
+       "346475   2122  apartment    1099     2    2.0             1             1   \n",
+       "346476   1014  apartment    1104     2    2.0             1             1   \n",
+       "346477    935  apartment    1050     2    2.0             0             0   \n",
+       "\n",
+       "        smoking_allowed  wheelchair_access  electric_vehicle_charge  \\\n",
+       "280                   1                  0                        0   \n",
+       "315                   1                  0                        0   \n",
+       "408                   1                  0                        0   \n",
+       "458                   1                  0                        0   \n",
+       "600                   1                  0                        0   \n",
+       "...                 ...                ...                      ...   \n",
+       "346473                0                  0                        0   \n",
+       "346474                1                  0                        0   \n",
+       "346475                1                  0                        0   \n",
+       "346476                0                  0                        0   \n",
+       "346477                0                  0                        0   \n",
+       "\n",
+       "        comes_furnished  laundry_options     parking_options      lat  \\\n",
+       "280                   0             None                None  37.2867   \n",
+       "315                   0      w/d hookups      street parking  38.4586   \n",
+       "408                   0      w/d hookups             carport  42.3113   \n",
+       "458                   0             None                None  30.6190   \n",
+       "600                   0  laundry on site      street parking  39.9230   \n",
+       "...                 ...              ...                 ...      ...   \n",
+       "346473                1      w/d in unit  off-street parking  40.0091   \n",
+       "346474                0  laundry on site                None  37.9591   \n",
+       "346475                0      w/d in unit  off-street parking  32.6279   \n",
+       "346476                0      w/d hookups  off-street parking  33.9659   \n",
+       "346477                0      w/d in unit     detached garage  48.1995   \n",
+       "\n",
+       "            long  \n",
+       "280     -79.9957  \n",
+       "315     -77.4306  \n",
+       "408     -85.1874  \n",
+       "458     -96.3185  \n",
+       "600     -82.8664  \n",
+       "...          ...  \n",
+       "346473  -76.3671  \n",
+       "346474  -87.5293  \n",
+       "346475 -117.0370  \n",
+       "346476  -80.9355  \n",
+       "346477 -101.2800  \n",
+       "\n",
+       "[169701 rows x 15 columns]"
+      ]
+     },
+     "execution_count": 298,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_train[df_train.duplicated]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 299,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train.drop_duplicates(inplace=True)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se chequean los valores nulos del dataset de entrenamiento. Se puede ver que esta relativamente  completo sin cantidades considerables de estos. Los valores nulos que se hallan están en las columnas longitud y latitud y, por ser una cantidad insignificante respecto al total, se ha decidido eliminar esas filas"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 300,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train = df_train[~df_train['lat'].isna()]"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Por otro lado, se analizan los valores faltantes de las columnas 'parking_options' y 'laundry_options', los cuales parecen no tener razón alguna."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 301,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "off-street parking    57331\n",
+       "attached garage       26166\n",
+       "carport               17462\n",
+       "detached garage        9108\n",
+       "street parking         8040\n",
+       "no parking             1405\n",
+       "valet parking           113\n",
+       "Name: parking_options, dtype: int64"
+      ]
+     },
+     "execution_count": 301,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_train['parking_options'].value_counts()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 302,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "w/d in unit           68143\n",
+       "w/d hookups           32823\n",
+       "laundry on site       21591\n",
+       "laundry in bldg       17989\n",
+       "no laundry on site     2625\n",
+       "Name: laundry_options, dtype: int64"
+      ]
+     },
+     "execution_count": 302,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_train['laundry_options'].value_counts()"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Luego de haber visto las distribuciones de cada categoría en ambas variables, se ha determinado que se llenaran los valores nulos con la categoría predominante.\n",
+    "En el caso de 'parking_options' sera 'off-street parking' y para 'laundry_options' sera 'w/d in unit'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 303,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train['parking_options'].fillna('off-street parking', inplace=True)\n",
+    "df_train['laundry_options'].fillna('w/d in unit', inplace=True)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Antes de convertir la columna 'price' en categórica, se eliminarán aquellos ingresos que se consideren outliers, como ser los que tienen precio 0 y el que tenga un precio muy por encima del resto.\n",
+    "A continuación se puede ver como los precios más caros se encuentran en los millones y hay 1 solo de 27 trillones"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 304,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "6519               0\n",
+       "314633             0\n",
+       "303679             0\n",
+       "228770             0\n",
+       "271525             0\n",
+       "             ...    \n",
+       "177615      11621360\n",
+       "297036      12000000\n",
+       "79076       18502000\n",
+       "98438       21701907\n",
+       "106214    2768307249\n",
+       "Name: price, Length: 175741, dtype: int64"
+      ]
+     },
+     "execution_count": 304,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "df_train['price'].sort_values()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 305,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train = df_train[(df_train['price'] != 0) & (df_train['price'] !=2768307249)]"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Para convertir la columna 'price' en categórica se la dividirá en 3 grupos ('Low', 'Medium', 'High)\n",
+    "Dichos grupos se dividirán de la siguiente forma:\n",
+    "- Low: [0-999]\n",
+    "- Medium: [1000-1999]\n",
+    "- High: [2000-30000000]\n",
+    "\n",
+    "Dado que nuestro modelo solamente aceptará variables numéricas y el objetivo del mismo es detectar si es Low o no, se le asignará el valor 1 a aquellos que se encuentren en la categoráa Low y 0 a los que se encuentren en Medium y High"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 306,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train = df_train.assign(low_price = pd.cut(df_train['price'], bins=[0,1000,2000,30000000], labels=[1, 0, 0], ordered=False))\n",
+    "df_train.drop(['price'], axis=1, inplace=True)\n"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se procesan las variables nominales: type, laundry_options, parking_options.\n",
+    "Se generan variables dummies para cada una ellas"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 307,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_train_proc = pd.get_dummies(df_train, columns=['type', 'laundry_options', 'parking_options'])\n",
+    "df_test_proc = pd.get_dummies(df_test, columns=['type', 'laundry_options', 'parking_options'])"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "    Una vez que el dataset esta preprocesado, se pasa al modelado.\n",
+    "    En este proceso se ha elegido trabajar con el método RandomForest dada su alta eficiencia para este tipo de dataset"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Primero se va a instanciar el modelo"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 308,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "modelo = RandomForestClassifier(n_estimators=100, max_features='sqrt', n_jobs=-1, oob_score = True, random_state = 42)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se realiza una división de entrenamiento y test para comprobar la exactitud y precisión del modelo.\n",
+    "Se tomará 20% para el test y 80% para el entrenamiento."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 309,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "\n",
+    "X = df_train_proc.drop(['low_price'],axis=1)\n",
+    "y = df_train_proc['low_price']\n",
+    "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se entrena el modelo"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 310,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<style>#sk-container-id-10 {color: black;background-color: white;}#sk-container-id-10 pre{padding: 0;}#sk-container-id-10 div.sk-toggleable {background-color: white;}#sk-container-id-10 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-10 label.sk-toggleable__label-arrow:before {content: \"▸\";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-10 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-10 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-10 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-10 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-10 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-10 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: \"▾\";}#sk-container-id-10 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-10 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-10 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-10 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-10 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-10 div.sk-parallel-item::after {content: \"\";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-10 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-10 div.sk-serial::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-10 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-10 div.sk-item {position: relative;z-index: 1;}#sk-container-id-10 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-10 div.sk-item::before, #sk-container-id-10 div.sk-parallel-item::before {content: \"\";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-10 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-10 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-10 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-10 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-10 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-10 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-10 div.sk-label-container {text-align: center;}#sk-container-id-10 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-10 div.sk-text-repr-fallback {display: none;}</style><div id=\"sk-container-id-10\" class=\"sk-top-container\"><div class=\"sk-text-repr-fallback\"><pre>RandomForestClassifier(n_jobs=-1, oob_score=True, random_state=42)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br />On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class=\"sk-container\" hidden><div class=\"sk-item\"><div class=\"sk-estimator sk-toggleable\"><input class=\"sk-toggleable__control sk-hidden--visually\" id=\"sk-estimator-id-10\" type=\"checkbox\" checked><label for=\"sk-estimator-id-10\" class=\"sk-toggleable__label sk-toggleable__label-arrow\">RandomForestClassifier</label><div class=\"sk-toggleable__content\"><pre>RandomForestClassifier(n_jobs=-1, oob_score=True, random_state=42)</pre></div></div></div></div></div>"
+      ],
+      "text/plain": [
+       "RandomForestClassifier(n_jobs=-1, oob_score=True, random_state=42)"
+      ]
+     },
+     "execution_count": 310,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "modelo.fit(X_train,y_train)"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Por último, se realizan las predicciones tanto del conjunto de entrenamiento como el de testeo y se evalúa el accuracy de ambos. En este caso se puede ver que se tiene un accuracy de 99.08% para el de entrenamiento y 88.52% para el de testeo lo cual demuestra cuan eficiente es el modelo."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 311,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0.9908692085458501\n",
+      "0.8852112876993751\n"
+     ]
+    }
+   ],
+   "source": [
+    "y_train_pred = modelo.predict(X_train)\n",
+    "y_test_pred = modelo.predict(X_test)\n",
+    "print(metrics.accuracy_score(y_train, y_train_pred))\n",
+    "print(metrics.accuracy_score(y_test, y_test_pred))"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Se crea una matriz de confusión para ver la distribución de las predicciones comparándolas con los valores verdaderos"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 230,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "array([[93947,   728],\n",
+       "       [  757, 62276]], dtype=int64)"
+      ]
+     },
+     "execution_count": 230,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "matrix = confusion_matrix(y_train, y_train_pred)\n",
+    "matrix_2 = confusion_matrix(y_test, y_test_pred)\n",
+    "cm_display = ConfusionMatrixDisplay(matrix)\n",
+    "matrix"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 231,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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bt1Yu3Yty5cvx2q14u3tDcDWrVupX78+oaGhhISEEBwczLZt2xxJQFZWFklJSfTs2ROA+Ph4t8cojVInEs2aNaN69eqlHlhERESuLCIi4orHQ0NDiYiI4KGHHmL+/Pm8/vrr9O3bl59++olFixYxatQooHheQ8+ePZkwYQLVq1enVq1ajB8/nsjISLp27QpgyBilUaaKRMuWLUs9sIiISIVWQfaRuJLQ0FDmz5/PO++8Q/fu3alRowbDhg1zWjmZmJhIUVERI0aMIC8vj/j4eBYsWICvr69hY5SG5kiIiIg5VbBE4pdffnH6uGXLlqxYseKq13t7ezN06NDf3CDSiDF+T5m3yBYRERG5pFQVie7du+tBXSIickPx5GTLG0mpEol33323vOMQERG5dirAzpY3Cs2REBERc1IiYAjNkRARERGXqSIhIiKmpDkSxlAiISIi5qREwhBqbYiIiIjLVJEQERHTseB+a8NiSCTXPyUSIiJiTmptGEKtDREREXGZKhIiImJOqkgYQomEiIiYkuY4GEOtDREREXGZKhIiImJOam0YQomEiIiYj92AnS2ViABKJERExKyUCBhCcyRERETEZapIiIiIOakiYQglEiIiYkp6+qcx1NoQERERl6kiISIi5qSKhCGUSIiIiCmptWEMtTZERETEZapIiIiIOakiYQglEiIiYkpqbRhDrQ0RERFxmSoSIiJiPnbcb22oogEokRAREbNSImAIJRIiImJKmiNhDM2REBEREZepIiEiIuakioQhlEiIiIgJ2bHYNdvSCGptiIiIiMtUkRAREXNSQcEQSiRERMR0LLi/asNiSCTXP7U2RERExGWqSIiIiPloZ0vDKJEQERFT0oZUxlBrQ0RERFymioSIiJiTKhKGUCIhIiKmpNaGMZRIiIiIOSmRMITmSIiIiIjLVJEQERFTUmvDGEokRETEnNx+aJeAWhsiIiLiBlUkRETElNTaMIYSCRERMR9tkW0YtTZERETEZapIiJOWHbMZv+rQVc8vmRDB0kmRTFzzK83b5QB7sKWuYebnxeefu6cRv/4UxOJtSUTWKbziGKnH/HiqQ9NyiF4EvPfnErgoA58DedgDvSi8OYjcv4Zhr1r87c5nTw4By87inZwPvhaKmgWQ+9cwbDX9HGN4pRQQuDiD9H1H+XPhDxTW9cXnsRCKWgcBELA0g8Bl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LFu2jDFjxtCjRw8mTZrk1GZo27YtP/zwg9P1W7dupU2bNnh5eXHzzTdjs9kcEyYBkpOTOX36NPHx8YaNURpKJERExITsWOzuvdzJJJKTkxk7dix33XUX/fv3Jz09nTNnznDmzBkuXLhAr169+Omnn5gwYQKHDh1i4cKF/POf/6Rv374AREREcO+99zJixAi2bdvGTz/9xODBg2nXrh2tW7cGMGSM0tAcCRERkWvsq6++orCwkA0bNrBhwwanc927d+e9995j1qxZjB8/nsWLF1O7dm3Gjx/vtJxzzJgxjB07lueeew6A2267jREjRjjON2rUyO0xSkOJhIiImJMHV20MGDCAAQMG/OY1t912G7fddttVzwcFBfH222/z9ttvl+sYv0eJhIiImJMHd7a8kSiREBER07Hg/u6UFkMiuf5psqWIiIi4TBUJERExJ7U2DKFEQkRETMli83QENwa1NkRERMRlqkiIiIj52HG/taHOCKBEQkREzEqJgCHU2hARERGXqSIhIiKmZMRjxEWJhIiImJUSCUOotSEiIiIuU0VCRETMSftIGEKJhIiImJLmSBhDiYSIiJiP9pEwjOZIiIiIiMtUkRAREROyG7BqQyUJUCIhIiJmpcmWhlBrQ0RERFymioSIiJiSVm0YQ4mEiIiYkxIJQ6i1ISIiIi5TRUJERMxJFQlDKJEQERFzUiJhCCUSIiJiPnbcX/6pPATQHAkRERFxgyoSIiJiSlr+aQwlEiIiYk5KJAyh1oaIiIi4TBUJERExITvY9NAuIyiREBERc1JrwxBqbYiIiIjLVJEQERFzUkXCEEokRETEfOy4n0goDwHU2hARERE3qCIhIiLm5PaqDQElEiIiYlZ2dx+2IaBEQkREzEqTLQ2hORIiIiLiMlUkRETEhLSzpVGUSIiIiPlo+adh1NoQERERl6kiISIi5qTJloZQIiEiIuakRMIQam2IiIiIy1SREBERc7JpQyojKJEQERFzUmvDEGptiIiIiMtUkRAREXNSRcIQSiRERMR87AbsbKlEBFAiISIiJmXX0z8NoTkSIiIi4jJVJERExJzcfmiXgBIJERExK81xMIRaGyIiIuIyVSRERMSctLOlIZRIiIiI+djt7rc21BoB1NoQERERN6giISIipmRXa8MQSiRERMSc1JowhFobIiIi4jJVJERExJy0IZUhlEiIiIg56VkbhlAiISIi5mMHu9tP/zQmlOud5kiIiIiIy1SREBERE7Ib0NpQSQKUSIiIiEm53doQQK0NERERcYPFbr+xduQoKizizPEMT4dhGr5+PoTVDiX9RAaFBUWeDscUrJG+ng7BNPy8vAkPqEJaXiYFNqunwzGFyIAq+Hh5l/v7WIuspB1Ld2uM8OgwvH3KP9aK7oZLJEREROTaUWtDREREXKZEQkRERFymREJERERcpkRCREREXKZEQkRERFymREJERERcpkRCREREXKZEQkRERFymREJERERcpkRCREREXKZEQkRERFymREJERERcpkRCREREXKZEQlxis9mYNm0anTp1onXr1vTr14/jx497OiyRcjF37lx69erl6TBEKiQlEuKSWbNmsWzZMsaMGcPy5cux2Wz07duXgoICT4cmYqilS5cyZcoUT4chUmEpkZAyKygoYOHChSQmJtK5c2diY2OZPHkyqamprF+/3tPhiRji9OnTDBgwgAkTJlCvXj1PhyNSYSmRkDLbv38/Fy9epGPHjo5jlStXplmzZmzfvt2DkYkYZ+/evfj6+vLZZ5/RqlUrT4cjUmH5eDoAuf6kpqYCULNmTafj4eHhjnMi17uEhAQSEhI8HYZIhaeKhJRZbm4uAH5+fk7H/f39yc/P90RIIiLiIUokpMwCAgIASkyszM/PJzAw0BMhiYiIhyiRkDK71NJIS0tzOp6WlkZERIQnQhIREQ9RIiFlFhsbS3BwMNu2bXMcy8rKIikpifj4eA9GJiIi15omW0qZ+fn50bNnTyZMmED16tWpVasW48ePJzIykq5du3o6PBERuYaUSIhLEhMTKSoqYsSIEeTl5REfH8+CBQvw9fX1dGgiInINWex2u93TQYiIiMj1SXMkRERExGVKJERERMRlSiRERETEZUokRERExGVKJERERMRlSiRERETEZUokRCowrc4WkYpOiYTcsHr16kWTJk2cXs2bN6dz586MGjWKzMzMcnvv1atX06RJE06cOAHA9OnTadKkSanvT01N5ZlnnuHkyZNux3LixAmaNGnC6tWrr3pNr1696NWrV5nGdeWeK/nfr5WIXF+0s6Xc0Jo1a8bIkSMdHxcWFrJ3714mTZrEvn37+Pjjj7FYLOUex8MPP0ynTp1Kff3mzZv59ttvyzEiERFjKJGQG1pwcDCtW7d2OhYfH8/FixeZNm0ae/bsKXG+PERGRhIZGVnu7yMicq2ptSGm1Lx5cwBSUlKA4jL9kCFDSExMpHXr1vTu3RuA/Px8xo0bx+23307z5s25//77+eKLL5zGstlszJo1i86dO9OqVSsGDhxYom1ypdbGmjVr6N69O61ataJz585MnDiRgoICVq9ezauvvgrAnXfeySuvvOK4Z+XKldx7772OFs306dOxWq1O465fv55u3brRsmVLunfvzv79+8v89Tl79iyjRo3ijjvuoHnz5rRr145BgwZdsf0wc+ZMbrnlFuLi4hg4cCDHjx93On/gwAH69+9PmzZtaNOmDYMGDSpxjYhcv1SREFNKTk4GoE6dOo5jX375Jd26dWP27NnYbDbsdjuDBg1i165dJCYmEhMTw4YNG3jppZcoKCjggQceAGD8+PEsWbKEZ599llatWvHll18yceLE33z/pUuXMnr0aB5++GEGDx7M8ePHGTduHJmZmbz44os8++yzzJ49mxkzZjgSkLlz5zJ58mR69uzJq6++yr59+5g+fTqnTp1i7NixAHz99dckJiZy//33M3ToUPbt28fQoUPL9LWx2+3079+fzMxMhgwZQlhYGL/88gtTpkxh5MiRLFiwwHHtzp07ycjI4M0338RqtTJx4kSefPJJ1q1bR3BwMMnJyTz22GM0aNCA999/n6KiImbPns3jjz/O2rVrCQ0NLVNsIlLxKJGQG5rdbqeoqMjxcWZmJj/88AOzZ88mLi7OUZkA8PX1ZdSoUfj5+QHw/fff89133zF58mT+9Kc/AdCpUydyc3OZMGEC9913Hzk5OXz00Uf07t2b5557znFNWloa33333RVjstlszJw5ky5duvD22287jufm5vL5558TEhJCdHQ0AE2bNqV27dpcuHCBWbNm8eijjzJixAgA/vCHP1C1alVGjBhB7969adSoETNnzqRly5aMHz/eEQvwu4nNf0tLSyMwMJDhw4fTtm1bANq3b8+xY8dYsWKF07Xe3t4sXLjQ0bZp0KABDzzwAGvWrKFnz57MmDGDwMBAFi1aRHBwMAAdO3akS5cuzJ8/n+HDh5c6LhGpmJRIyA1t+/bt3HTTTU7HvLy8uOWWWxg9erTTRMsGDRo4kgiALVu2YLFYuP32252SkYSEBD777DN+/fVXzpw5Q2FhIXfccYfTe/zxj3+8aiKRnJxMRkYGd911l9PxPn360KdPnyves3v3bvLy8khISCgRCxQnPXXq1GHv3r288MILJWIpSyIRERHBkiVLsNvtnDhxgqNHj3L48GF27dpFQUGB07Vt2rRxmvvRtGlT6tSpw/bt2+nZsydbt26lXbt2BAQEOOIODg6mbdu2bN68udQxiUjFpURCbmg33XQTo0aNAsBiseDv70/NmjUdvx3/t0qVKjl9fP78eex2O23atLni2GlpaWRlZQFQrVo1p3M1atS4akznz58HKFNZ/9I9zzzzzFVjyczMxG63l4glPDy81O9zyWeffcakSZM4deoUVatWpWnTpgQEBJS4LiwsrMSx0NBQx9fl/PnzfPHFFyXmlQBUr169zHGJSMWjREJuaJUqVaJFixYu3RsSEkJQUBBLliy54vm6devy008/AZCRkUGDBg0c5y794L+SypUrA8UTGv/buXPnSEpKIi4u7qr3TJgwgXr16pU4HxYWRtWqVfHy8iI9Pd3p3G/FciU7duxg+PDh9OrViz59+hAREQHAuHHj2Llzp9O1V9qL48yZM47PISQkhFtuucUxefW/+fjo24/IjUCrNkSuol27duTk5GC322nRooXjdeDAAWbOnElRURFxcXEEBATwz3/+0+nef/3rX1cdt0GDBlSrVq3ENWvXruWZZ56hsLAQLy/nf5qtWrXC19eX06dPO8Xi4+PDpEmTOHHiBP7+/sTFxbF+/XqnHTG//vrrMn3eu3fvxmaz8fzzzzuSCKvV6mhF2Gw2x7U7d+7kwoULjo/37NnDyZMn6dChA1D8NTx48CBNmzZ1xNy8eXMWLVrEhg0byhSXiFRM+pVA5Cpuv/124uPjGThwIAMHDiQmJoaffvqJadOm0alTJ0dpfuDAgUyZMoXAwEA6dOjAt99++5uJhLe3N88//zyjR48mNDSUhIQEkpOTmTZtGj169KBKlSqOCsSGDRu47bbbiImJoW/fvkydOpXs7Gzat2/P6dOnmTp1KhaLhdjYWAAGDx7MU089xXPPPcejjz5KcnIyc+bMKdPn3bJlSwBGjx7NQw89RGZmJkuXLnUsI83JyXG0hmw2G8888wwDBgzg3LlzTJw4kcaNG9OtWzfH1+axxx6jf//+PP744/j7+7NixQo2btzItGnTyhSXiFRMSiRErsLLy4t58+YxdepU5s6dS0ZGBhEREfTu3ZtBgwY5ruvfvz9BQUEsXryYxYsXExcXx/Dhw3nrrbeuOnaPHj0ICgpiwYIFrFixgsjISPr160e/fv2A4lUSt9xyCxMnTmTLli3MmzePF198kRo1arBs2TLmz59PlSpV6NixI4MHDyYkJASAtm3b8sEHHzBp0iSee+45ateuzdixYxkwYECpP+/27dvz5ptv8uGHH/LPf/6TsLAw2rdvz4wZMxg0aBA7d+7k9ttvB6BLly5ERUUxdOhQioqKuOOOO3j99dfx9/cHIDY2lqVLlzJ58mSGDRuG3W6ncePGzJw5kzvvvLOs/0tEpAKy2PVUIBEREXGR5kiIiIiIy5RIiIiIiMuUSIiIiIjLlEiIiIiIy5RIiIiIiMuUSIiIiIjLlEiIiIiIy5RIiIiIiMuUSIiIiIjLlEiIiIiIy5RIiIiIiMuUSIiIiIjL/j9NcsltC39ZGQAAAABJRU5ErkJggg==",
+      "text/plain": [
+       "<Figure size 640x480 with 2 Axes>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "cm_display.plot()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "attachments": {},
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Por último, se va a predecir la variable objetivo con el set de test que se habia guardado de un principio, se la convierte en DataFrame y de ahí a csv.\n",
+    "Dado que en este dataset las columnas 'type_land' y 'type_assisted living' no existen pero deben estar ya que el modelo fue entrenado con dichas variables, se agregan al datasets con todos valores nulos."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 232,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "d = pd.DataFrame(0, index=np.arange(len(df_test_proc)), columns=['type_land','type_assisted living'])\n",
+    "df_test_proc.insert(12,column='type_assisted living', value= d['type_assisted living'])\n",
+    "df_test_proc.insert(19,column='type_land', value= d['type_land'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 233,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pred = modelo.predict(df_test_proc)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 234,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "cristianpapini = pd.DataFrame(pred, columns=['pred'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 235,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "cristianpapini.to_csv('cristianpapini.csv', index=False)"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.1"
+  },
+  "orig_nbformat": 4,
+  "vscode": {
+   "interpreter": {
+    "hash": "5238573367df39f7286bb46f9ff5f08f63a01a80960060ce41e3c79b190280fa"
+   }
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
